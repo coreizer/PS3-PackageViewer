@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32516.85
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PS3-PackageViewer", "PS3-PackageViewer\PS3-PackageViewer.csproj", "{18180B62-EB91-4E96-AC03-DA5D60346A74}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PS3-PackageViewer", "src\PS3-PackageViewer\PS3-PackageViewer.csproj", "{18180B62-EB91-4E96-AC03-DA5D60346A74}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
