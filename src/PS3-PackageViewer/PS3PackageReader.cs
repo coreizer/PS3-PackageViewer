@@ -7,10 +7,10 @@
    using System.Linq;
    using System.Security.Cryptography;
    using System.Text;
+   using System.Threading.Tasks;
 
    public class PS3PackageReader
    {
-      private static readonly byte[] MAGIC_PKG = new byte[] { 0x7F, 0x50, 0x4B, 0x47 };
       private const int MULTIPLIER_SIZE = 65536;
 
       /// <summary>
@@ -25,8 +25,8 @@
       /// </summary>
       public class Header
       {
-         public byte[] magic;
-         public byte[] pkg_revision;
+         public string magic;
+         public short pkg_revision;
          public byte[] pkg_type;
          public byte[] pkg_meta_data_offset;
          public byte[] pkg_meta_data_count;
@@ -44,9 +44,17 @@
          public bool IsValid
          {
             get {
-               return this.magic.SequenceEqual(MAGIC_PKG);
+               return this.magic.Remove(0, 1).SequenceEqual("PKG");
             }
          }
+      }
+
+      public enum FileType
+      {
+         Folder,
+         File,
+         Image,
+         Unknown,
       }
 
       public struct File
@@ -55,13 +63,13 @@
          public string FolderName;
          public uint Offset;
          public uint Size;
-         public byte Type;
+         public FileType Type;
          public byte Unknown;
       }
 
       public class Package
       {
-         public string ContentId
+         public string TitleId
          {
             get {
                if (this.FileName == null) {
@@ -92,7 +100,7 @@
          this.npdrm_pkg_ps3_aes_key = this.ToByteArray(NPDRM_PKG_PS3_AES_KEY);
       }
 
-      public Package Read(string filePath)
+      public async Task<Package> ReadAsync(string filePath)
       {
          if (string.IsNullOrEmpty(filePath)) {
             throw new ArgumentNullException(nameof(filePath));
@@ -100,29 +108,29 @@
 
          this._filePath = filePath;
          if (Path.GetExtension(filePath) != ".pkg") {
-            throw new InvalidOperationException("File error");
+            throw new InvalidOperationException("Invalid File.");
          }
 
          FileStream cipherStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
          BinaryReader cipherReader = new BinaryReader(cipherStream, Encoding.ASCII, true);
-
-         this._header = this.ReaderHeader(cipherReader);
+         HexReader hexReader = new HexReader(cipherStream);
+         this._header = this.ReaderHeader(hexReader);
          if (!this._header.IsValid || this._header.pkg_type[0] != 0x01) {
             throw new InvalidDataException("This package(PKG) is not supported.");
          }
 
-         return this.ReaderContent(cipherStream, cipherReader);
+         return await this.ReaderContent(cipherStream, cipherReader);
       }
 
-      private Package ReaderContent(FileStream cipherStream, BinaryReader cipherReader)
+      private async Task<Package> ReaderContent(FileStream cipherStream, BinaryReader cipherReader)
       {
          Package package = new Package(this._header.contentid);
-         MemoryStream decipherStream = this.ReaderContentData(cipherStream);
+         MemoryStream decipherStream = await this.ReaderContentData(cipherStream);
          BinaryReader decipherReader = new BinaryReader(decipherStream);
 
          uint index = 0;
 
-         byte[] fileTable = new byte[320000];
+         byte[] fileTable = new byte[370000];
          byte[] size = new byte[4];
          byte[] offset = new byte[4];
          byte[] nameSize = new byte[4];
@@ -146,10 +154,10 @@
             File file = new File
             {
                Unknown = fileTable[index + 24],
-               Type = fileTable[index + 27]
+               Type = this.GetFileType(fileTable[index + 27])
             };
 
-            string contentId = package.ContentId;
+            string titleId = package.TitleId;
 
             Array.Copy(fileTable, index + 12, offset, 0, offset.Length);
             Array.Reverse(offset);
@@ -177,10 +185,10 @@
             filename = filename.Replace('/', '\\');
             if (filename.Contains("\\")) {
                int removeIndex = filename.IndexOf('\\');
-               contentId = contentId + "\\" + filename.Remove(removeIndex);
+               titleId = titleId + "\\" + filename.Remove(removeIndex);
             }
 
-            file.FolderName = contentId;
+            file.FolderName = titleId;
             file.Name = filename;
             package.Files.Add(file);
 
@@ -191,7 +199,17 @@
          return package;
       }
 
-      private MemoryStream ReaderContentData(FileStream fileStream)
+      private FileType GetFileType(byte fileType)
+      {
+         switch (fileType) {
+            case 0x04:
+               return FileType.Folder;
+         }
+
+         return FileType.Unknown;
+      }
+
+      private async Task<MemoryStream> ReaderContentData(FileStream fileStream)
       {
          if (this._header == null) {
             throw new NullReferenceException("パッケージヘッダーが初期化されていません");
@@ -227,7 +245,7 @@
             bufferStream.Write(decryptData, 0, decryptData.Length);
          }
 
-         bufferStream.Flush();
+         await bufferStream.FlushAsync();
          return bufferStream;
       }
 
@@ -319,7 +337,7 @@
       {
          int pos = 0;
          byte[] bytes = new byte[hexString.Length >> 1];
-         for (int i = 0; i < hexString.Length; i = i + 2) {
+         for (int i = 0; i < hexString.Length; i += 2) {
             bytes[pos] = Convert.ToByte(hexString.Substring(i, 2), 16);
             pos++;
          }
@@ -380,28 +398,27 @@
       private byte[] Decryption(int dataSize, long startOffset, long relativeOffset, Stream stream, BinaryReader reader)
       {
          int size = dataSize;
-         if (size % 16 > 0)
+         if (size % 16 > 0) {
             size = ((size / 16) + 1) * 16;
+         }
 
          byte[] key = new byte[size];
-         byte[] xor = new byte[size];
-         byte[] data = new byte[size];
-         byte[] dataRiv = new byte[this._header.pkg_data_riv.Length];
+         byte[] riv = new byte[this._header.pkg_data_riv.Length];
 
          stream.Seek(relativeOffset + startOffset, SeekOrigin.Begin);
-         data = reader.ReadBytes(size);
+         byte[] data = reader.ReadBytes(size);
 
-         Array.Copy(this._header.pkg_data_riv, dataRiv, this._header.pkg_data_riv.Length);
+         Array.Copy(this._header.pkg_data_riv, riv, this._header.pkg_data_riv.Length);
          for (int pos = 0; pos < relativeOffset; pos += 16) {
-            IncrementArray(ref dataRiv, this._header.pkg_data_riv.Length - 1);
+            IncrementArray(ref riv, this._header.pkg_data_riv.Length - 1);
          }
 
          for (int pos = 0; pos < size; pos += 16) {
-            Array.Copy(dataRiv, 0, key, pos, this._header.pkg_data_riv.Length);
-            IncrementArray(ref dataRiv, this._header.pkg_data_riv.Length - 1);
+            Array.Copy(riv, 0, key, pos, this._header.pkg_data_riv.Length);
+            IncrementArray(ref riv, this._header.pkg_data_riv.Length - 1);
          }
 
-         xor = RijndaelEncrypt(key, CipherMode.ECB, PaddingMode.None);
+         byte[] xor = RijndaelEncrypt(key, CipherMode.ECB, PaddingMode.None);
          return XOR(data, 0, xor.Length, xor);
       }
    }
