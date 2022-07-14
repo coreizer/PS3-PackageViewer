@@ -44,6 +44,7 @@
          public bool IsValid
          {
             get {
+               Trace.WriteLine(this.magic.Remove(0, 1));
                return this.magic.Remove(0, 1).SequenceEqual("PKG");
             }
          }
@@ -249,21 +250,17 @@
          return bufferStream;
       }
 
-      private Header ReaderHeader(BinaryReader reader)
+      private Header ReaderHeader(HexReader reader)
       {
          Header header = new Header();
 
-         // 読み取り開始位置を最初にする
-         reader.BaseStream.Seek(0, SeekOrigin.Begin);
-
          // magic
          // Offset: 0x00, Size: 0x04
-         header.magic = reader.ReadBytes(0x04);
+         header.magic = reader.ReadString(4);
 
          // pkg_revision
          // Offset: 0x04, Size: 0x02
-         header.pkg_revision = reader.ReadBytes(0x02);
-         Array.Reverse(header.pkg_revision);
+         header.pkg_revision = reader.ReadShort();
 
          // pkg_type
          // Offset: 0x06, Size: 0x02

@@ -231,6 +231,10 @@ namespace PS3_PackageViewer
                FileStream stream = new FileStream(OFD.FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                HexReader reader = new HexReader(stream);
 
+               MessageBox.Show(reader.ReadString(4, 0x01));
+               MessageBox.Show(reader.ReadString(4, 0x01));
+               MessageBox.Show(reader.ReadString(4));
+               MessageBox.Show(reader.ReadString(4));
                MessageBox.Show(reader.ReadString(4));
             }
 
