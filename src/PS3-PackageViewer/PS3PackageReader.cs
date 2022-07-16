@@ -26,12 +26,12 @@
       public class Header
       {
          public string magic;
-         public short pkg_revision;
-         public byte[] pkg_type;
-         public byte[] pkg_meta_data_offset;
-         public byte[] pkg_meta_data_count;
-         public byte[] pkg_meta_data_size;
-         public byte[] item_count;
+         public ushort pkg_revision;
+         public ushort pkg_type;
+         public uint pkg_meta_data_offset;
+         public uint pkg_meta_data_count;
+         public uint pkg_meta_data_size;
+         public uint item_count;
          public ulong total_size;
          public ulong data_offset;
          public ulong data_size;
@@ -114,9 +114,9 @@
 
          FileStream cipherStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
          BinaryReader cipherReader = new BinaryReader(cipherStream, Encoding.ASCII, true);
-         HexReader hexReader = new HexReader(cipherStream);
+         HexReader hexReader = new HexReader(cipherStream, HexReader.Endianness.Big);
          this._header = this.ReaderHeader(hexReader);
-         if (!this._header.IsValid || this._header.pkg_type[0] != 0x01) {
+         if (!this._header.IsValid || this._header.pkg_type != 1) {
             throw new InvalidDataException("This package(PKG) is not supported.");
          }
 
@@ -252,82 +252,68 @@
 
       private Header ReaderHeader(HexReader reader)
       {
-         Header header = new Header();
+         return new Header
+         {
+            // magic
+            // Offset: 0x00, Size: 0x04
+            magic = reader.ReadString(4),
 
-         // magic
-         // Offset: 0x00, Size: 0x04
-         header.magic = reader.ReadString(4);
+            // pkg_revision
+            // Offset: 0x04, Size: 0x02
+            pkg_revision = reader.ReadUShort(),
 
-         // pkg_revision
-         // Offset: 0x04, Size: 0x02
-         header.pkg_revision = reader.ReadShort();
+            // pkg_type
+            // Offset: 0x06, Size: 0x02
+            pkg_type = reader.ReadUShort(),
 
-         // pkg_type
-         // Offset: 0x06, Size: 0x02
-         header.pkg_type = reader.ReadBytes(0x02);
-         Array.Reverse(header.pkg_type);
+            // pkg_meta_data_offset
+            // Offset: 0x08, Size: 0x04
+            pkg_meta_data_offset = reader.ReadUInt32(),
 
-         // pkg_meta_data_offset
-         // Offset: 0x08, Size: 0x04
-         header.pkg_meta_data_offset = reader.ReadBytes(0x04);
-         Array.Reverse(header.pkg_meta_data_offset);
+            // pkg_meta_data_count
+            // Offset: 0x0C, Size: 0x04
+            pkg_meta_data_count = reader.ReadUInt32(),
 
-         // pkg_meta_data_count
-         // Offset: 0x0C, Size: 0x04
-         header.pkg_meta_data_count = reader.ReadBytes(0x04);
-         Array.Reverse(header.pkg_meta_data_count);
+            // pkg_meta_data_size
+            // Offset: 0x10, Size: 0x04
+            pkg_meta_data_size = reader.ReadUInt32(),
 
-         // pkg_meta_data_size
-         // Offset: 0x10, Size: 0x04
-         header.pkg_meta_data_size = reader.ReadBytes(0x04);
-         Array.Reverse(header.pkg_meta_data_count);
+            // item_count
+            // Offset: 0x14, Size: 0x04
+            item_count = reader.ReadUInt32(),
 
-         // item_count
-         // Offset: 0x14, Size: 0x04
-         header.item_count = reader.ReadBytes(0x04);
-         Array.Reverse(header.item_count);
+            // total_size
+            // Offset: 0x18, Size: 0x08
+            total_size = reader.ReadUInt64(),
 
-         // total_size
-         // Offset: 0x18, Size: 0x08
-         byte[] total_size = reader.ReadBytes(0x08);
-         Array.Reverse(total_size);
-         header.total_size = BitConverter.ToUInt64(total_size, 0);
+            // data_offset
+            // Offset: 0x20, Size: 0x08
+            data_offset = reader.ReadUInt64(),
 
-         // data_offset
-         // Offset: 0x18, Size: 0x08
-         byte[] data_offset = reader.ReadBytes(0x08);
-         Array.Reverse(data_offset);
-         header.data_offset = BitConverter.ToUInt64(data_offset, 0);
+            // data_size
+            // Offset: 0x28, Size: 0x08
+            data_size = reader.ReadUInt64(),
 
-         // data_size
-         // Offset: 0x18, Size: 0x08
-         byte[] data_size = reader.ReadBytes(0x08);
-         Array.Reverse(data_size);
-         header.data_size = BitConverter.ToUInt64(data_size, 0);
+            // contentid
+            // Offset: 0x30, Size: 0x24
+            contentid = Encoding.UTF8.GetString(reader.ReadBytes(0x24)),
 
-         // contentid
-         // Offset: 0x30, Size: 0x24
-         header.contentid = Encoding.UTF8.GetString(reader.ReadBytes(0x24));
+            // padding
+            // Offset: 0x54, Size: 0x0C
+            padding = reader.ReadBytes(0x0C, 0x54),
 
-         // padding
-         // Offset: 0x54, Size: 0x0C
-         header.padding = reader.ReadBytes(0x0C);
-         Array.Reverse(header.padding);
+            // digest
+            // Offset: 0x60, Size: 0x10
+            digest = reader.ReadBytes(0x10, HexReader.Endianness.Little),
 
-         // digest
-         // Offset: 0x60, Size: 0x10
-         header.digest = reader.ReadBytes(0x10);
-         Array.Reverse(header.digest);
+            // pkg_data_riv
+            // Offset: 0x70, Size: 0x10
+            pkg_data_riv = reader.ReadBytes(0x10 , HexReader.Endianness.Little),
 
-         // pkg_data_riv
-         // Offset: 0x70, Size: 0x10
-         header.pkg_data_riv = reader.ReadBytes(0x10);
-
-         // pkg_header_digest
-         // Offset: 0x80, Size: 0x40
-         header.pkg_header_digest = reader.ReadBytes(0x40);
-
-         return header;
+            // pkg_header_digest
+            // Offset: 0x80, Size: 0x40
+            pkg_header_digest = reader.ReadBytes(0x40, HexReader.Endianness.Little),
+         };
       }
 
       private byte[] ToByteArray(string hexString)

@@ -201,13 +201,14 @@
          this.debugToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openHexReaderToolStripMenuItem});
          this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-         this.debugToolStripMenuItem.Size = new System.Drawing.Size(109, 22);
+         this.debugToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
          this.debugToolStripMenuItem.Text = "Debug";
          // 
          // openHexReaderToolStripMenuItem
          // 
          this.openHexReaderToolStripMenuItem.Name = "openHexReaderToolStripMenuItem";
-         this.openHexReaderToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+         this.openHexReaderToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.D)));
+         this.openHexReaderToolStripMenuItem.Size = new System.Drawing.Size(204, 22);
          this.openHexReaderToolStripMenuItem.Text = "Open HexReader";
          this.openHexReaderToolStripMenuItem.Click += new System.EventHandler(this.openHexReaderToolStripMenuItem_Click);
          // 

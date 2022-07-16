@@ -232,9 +232,9 @@ namespace PS3_PackageViewer
                HexReader reader = new HexReader(stream);
 
                MessageBox.Show(reader.ReadString(4, 0x01));
+               MessageBox.Show(reader.ReadString(4));
+               MessageBox.Show(reader.ReadString(4));
                MessageBox.Show(reader.ReadString(4, 0x01));
-               MessageBox.Show(reader.ReadString(4));
-               MessageBox.Show(reader.ReadString(4));
                MessageBox.Show(reader.ReadString(4));
             }
 

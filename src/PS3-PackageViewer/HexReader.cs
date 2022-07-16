@@ -73,22 +73,17 @@ namespace PS3_PackageViewer
 
       public byte[] ReadBytes(int length)
       {
-         return ReadBytes(length, this._lastOffset);
+         return ReadCore(length);
       }
 
-      public byte[] ReadBytes(int length, long position = -1)
+      public byte[] ReadBytes(int length, Endianness endian)
       {
-         if (position >= 0) {
-            this.BaseStream.Position = position;
-         }
-         byte[] buffer = new byte[length];
-         this.BaseStream.Read(buffer, 0, buffer.Length);
-         this._lastOffset = this.BaseStream.Position;
-         if (this.Endian == Endianness.Big) {
-            Array.Reverse(buffer, 0, buffer.Length);
-         }
+         return ReadCore(length, endian: endian, priorityArgument: true);
+      }
 
-         return buffer;
+      public byte[] ReadBytes(int length, long offset)
+      {
+         return ReadCore(length, offset);
       }
 
       public short ReadShort()
@@ -103,7 +98,12 @@ namespace PS3_PackageViewer
 
       public ushort ReadUShort()
       {
-         return BitConverter.ToUInt16(this.ReadBytes(2, this._lastOffset), 0);
+         return BitConverter.ToUInt16(this.ReadCore(2, this._lastOffset), 0);
+      }
+
+      public ushort ReadUShort(Endianness endian)
+      {
+         return BitConverter.ToUInt16(this.ReadCore(2, endian: endian), 0);
       }
 
       public ushort ReadUShort(long offset)
@@ -128,7 +128,7 @@ namespace PS3_PackageViewer
 
       public uint ReadUInt32(long offset)
       {
-         return BitConverter.ToUInt32(this.ReadBytes( 4, offset), 0);
+         return BitConverter.ToUInt32(this.ReadBytes(4, offset), 0);
       }
 
       public long ReadInt64()
@@ -158,14 +158,30 @@ namespace PS3_PackageViewer
 
       public string ReadString(int length)
       {
-         byte[] buffer = this.ReadBytes(length);
+         byte[] buffer = this.ReadCore(length, priorityArgument: true);
          return Encoding.ASCII.GetString(buffer);
       }
 
       public string ReadString(int length, long offset)
       {
-         byte[] buffer = this.ReadBytes(length, offset);
+         byte[] buffer = this.ReadCore(length, offset, priorityArgument: true);
          return Encoding.ASCII.GetString(buffer);
+      }
+
+
+      private byte[] ReadCore(int length, long offset = -1, Endianness endian = Endianness.Little, bool priorityArgument = false)
+      {
+         byte[] buffer = new byte[length];
+         if (offset >= 0) {
+            this.BaseStream.Position = offset;
+         }
+         this.BaseStream.Read(buffer, 0, buffer.Length);
+         this._lastOffset = this.BaseStream.Position;
+         if (this.Endian == Endianness.Big && !priorityArgument || endian == Endianness.Big) {
+            Array.Reverse(buffer, 0, buffer.Length);
+         }
+
+         return buffer;
       }
    }
 }
